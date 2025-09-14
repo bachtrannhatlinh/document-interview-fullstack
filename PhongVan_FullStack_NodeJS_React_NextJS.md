@@ -42,7 +42,16 @@
 - Middleware
 - App Router (Next.js 13+)
 
-### 4. **DATABASE & BACKEND**
+### 4. **FRONTEND FUNDAMENTALS**
+- HTML5 Semantic Elements
+- CSS3 (Flexbox, Grid, Animations)
+- Responsive Design & Mobile-First
+- CSS Preprocessors (SASS/LESS)
+- Browser APIs (Fetch, LocalStorage, Geolocation)
+- Web Performance Optimization
+- Accessibility (WCAG, ARIA)
+
+### 5. **DATABASE & BACKEND**
 - SQL (PostgreSQL, MySQL)
 - NoSQL (MongoDB)
 - ORM/ODM (Prisma, Mongoose, TypeORM)
@@ -51,7 +60,16 @@
 - Authentication & Authorization (JWT, OAuth)
 - Database Design và Normalization
 
-### 5. **DEVOPS & DEPLOYMENT**
+### 6. **TESTING & QUALITY**
+- Unit Testing (Jest, Vitest)
+- React Testing Library
+- Integration Testing
+- E2E Testing (Cypress, Playwright)
+- Test-Driven Development (TDD)
+- Code Quality (ESLint, Prettier, Husky)
+
+### 7. **DEVOPS & DEPLOYMENT**
+- Git & Version Control
 - Docker và Containerization
 - CI/CD Pipelines
 - Cloud Platforms (AWS, Vercel, Netlify)
@@ -109,7 +127,38 @@
 - "API Routes vs External API?"
 - "Middleware trong Next.js 12+?"
 
-### **D. CÂU HỎI SYSTEM DESIGN**
+### **D. CÂU HỎI FRONTEND FUNDAMENTALS**
+
+#### **1. HTML/CSS**
+- "Semantic HTML5 elements và tầm quan trọng?"
+- "CSS Grid vs Flexbox?"
+- "Responsive design strategies?"
+- "CSS specificity và cascade?"
+
+#### **2. Web Performance**
+- "Lazy loading images và components?"
+- "Core Web Vitals là gì?"
+- "Bundle size optimization?"
+- "Critical rendering path?"
+
+#### **3. Accessibility**
+- "ARIA attributes và screen readers?"
+- "Keyboard navigation?"
+- "Color contrast và WCAG guidelines?"
+
+### **E. CÂU HỎI TESTING**
+
+#### **1. Testing Strategies**
+- "Unit vs Integration vs E2E testing?"
+- "Testing pyramid concept?"
+- "Mocking vs Stubbing?"
+
+#### **2. React Testing**
+- "Testing custom hooks?"
+- "Testing async operations?"
+- "Snapshot testing pros/cons?"
+
+### **F. CÂU HỎI SYSTEM DESIGN**
 
 #### **1. Architecture**
 - "Thiết kế một e-commerce website?"
@@ -179,6 +228,26 @@
 // Yêu cầu: getServerSideProps, API integration, SEO
 ```
 
+### **4. FRONTEND & TESTING EXERCISES**
+
+#### **Bài 1: Responsive Dashboard**
+```javascript
+// Tạo admin dashboard responsive
+// Yêu cầu: CSS Grid/Flexbox, mobile-first, accessibility
+```
+
+#### **Bài 2: Testing Components**
+```javascript
+// Viết tests cho React components
+// Yêu cầu: Unit tests, integration tests, mocking API calls
+```
+
+#### **Bài 3: Performance Optimization**
+```javascript
+// Optimize ứng dụng React performance
+// Yêu cầu: Code splitting, lazy loading, memoization
+```
+
 ---
 
 ## 🎯 CÂU HỎI HÀNH VI & SOFT SKILLS
@@ -217,10 +286,24 @@
 - [Next.js Learn Course](https://nextjs.org/learn)
 - [Next.js Examples](https://github.com/vercel/next.js/tree/canary/examples)
 
+### **Frontend & Web Standards**
+- [MDN Web Docs](https://developer.mozilla.org/)
+- [Web.dev](https://web.dev/)
+- [CSS Tricks](https://css-tricks.com/)
+- [A11y Project](https://www.a11yproject.com/)
+
+### **Testing**
+- [Jest Documentation](https://jestjs.io/docs/getting-started)
+- [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
+- [Cypress Documentation](https://docs.cypress.io/)
+
 ### **System Design**
 - [System Design Primer](https://github.com/donnemartin/system-design-primer)
 - [High Scalability](http://highscalability.com/)
 - [AWS Architecture Center](https://aws.amazon.com/architecture/)
+
+### **Git & Version Control**
+- [27_Git_Version_Control_Interview.md](27_Git_Version_Control_Interview.md)
 
 ---
 
