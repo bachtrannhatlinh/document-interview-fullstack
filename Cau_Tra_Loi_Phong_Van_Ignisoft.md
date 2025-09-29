@@ -529,7 +529,32 @@ function LoginForm() {
   );
 }
 
-// 4. Token Refresh Logic
+// 4. Token Refresh Logic - KHI NÀO VÀ ĐẶT Ở ĐÂU?
+
+/*
+🎯 KHI NÀO SỬ DỤNG setupTokenRefresh?
+
+1. JWT Short-lived Tokens (15-30 phút expiry)
+   - Security best practice: shorter token lifetime
+   - Giảm thiểu damage nếu token bị compromise
+   - User experience tốt (không phải login lại liên tục)
+
+2. Long-running Applications
+   - SPA (Single Page Applications)
+   - Real-time dashboards
+   - Admin panels với user hoạt động lâu
+
+3. Mobile Applications
+   - Native mobile apps
+   - PWAs (Progressive Web Apps)
+   - Offline-capable applications
+
+❌ KHÔNG NÊN DÙNG KHI:
+- Stateless applications với server-side sessions
+- Short user sessions (< 30 minutes)
+- High-security applications requiring frequent re-auth
+*/
+
 async function setupTokenRefresh() {
   const token = localStorage.getItem('token');
   if (!token) return;
@@ -571,6 +596,381 @@ async function setupTokenRefresh() {
     logout();
   }
 }
+
+/*
+🏗️ ĐẶT Ở ĐÂU TRONG ỨNG DỤNG?
+
+1. App Initialization (_app.js hoặc main App component)
+2. Auth Context/Provider  
+3. API interceptors
+4. Custom auth hooks
+
+Xem implementation chi tiết bên dưới ⬇️
+*/
+```
+
+**IMPLEMENTATION CHI TIẾT - ĐẶT Ở ĐÂU:**
+
+## **1. Trong Auth Context (RECOMMENDED):**
+```javascript
+// contexts/AuthContext.js
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const refreshTimeoutRef = useRef(null);
+
+  // Initialize auth and setup token refresh
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const userData = await verifyToken(token);
+          setUser(userData);
+          // 🎯 Setup refresh sau khi verify thành công
+          setupTokenRefresh();
+        } catch {
+          localStorage.removeItem('token');
+        }
+      }
+      setLoading(false);
+    };
+    
+    initializeAuth();
+
+    // Cleanup timeout khi component unmount
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const setupTokenRefresh = useCallback(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const expirationTime = payload.exp * 1000;
+      const currentTime = Date.now();
+      const timeUntilExpiration = expirationTime - currentTime;
+      const refreshTime = timeUntilExpiration - 5 * 60 * 1000; // 5 minutes before
+
+      // Clear existing timeout
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+
+      if (refreshTime > 0) {
+        refreshTimeoutRef.current = setTimeout(async () => {
+          try {
+            const response = await fetch('/api/auth/refresh', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+              const { token: newToken, user: userData } = await response.json();
+              localStorage.setItem('token', newToken);
+              setUser(userData);
+              // 🔄 Recursive call để setup next refresh
+              setupTokenRefresh();
+            } else {
+              logout();
+            }
+          } catch (error) {
+            logout();
+          }
+        }, refreshTime);
+      } else {
+        // Token đã expired hoặc sắp expired
+        logout();
+      }
+    } catch (error) {
+      logout();
+    }
+  }, []);
+
+  const login = async (email, password) => {
+    // ... login logic
+    const { user, token } = await response.json();
+    localStorage.setItem('token', token);
+    setUser(user);
+    // 🎯 Setup refresh sau khi login thành công
+    setupTokenRefresh();
+  };
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    setUser(null);
+    // Clear refresh timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+```
+
+## **2. Trong App Component (_app.js hoặc App.jsx):**
+```javascript
+// pages/_app.js (Next.js) hoặc App.jsx (React)
+import { useEffect } from 'react';
+import { AuthProvider } from '../contexts/AuthContext';
+
+export default function App({ Component, pageProps }) {
+  // 🎯 Global app-level setup
+  useEffect(() => {
+    // Setup token refresh khi app khởi động
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Check if user is returning to app (page reload, new tab, etc.)
+      setupTokenRefresh();
+    }
+
+    // Handle visibility change (user switches tabs)
+    const handleVisibilityChange = () => {
+      if (!document.hidden && localStorage.getItem('token')) {
+        // User returned to tab, check token status
+        const token = localStorage.getItem('token');
+        if (isTokenExpiringSoon(token)) {
+          refreshToken();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  return (
+    <AuthProvider>
+      <Component {...pageProps} />
+    </AuthProvider>
+  );
+}
+
+function isTokenExpiringSoon(token, bufferMinutes = 5) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expirationTime = payload.exp * 1000;
+    const currentTime = Date.now();
+    const bufferTime = bufferMinutes * 60 * 1000;
+    
+    return (expirationTime - currentTime) <= bufferTime;
+  } catch {
+    return true; // Invalid token = consider expired
+  }
+}
+```
+
+## **3. Trong API Interceptors (Advanced):**
+```javascript
+// services/apiClient.js
+import axios from 'axios';
+
+const apiClient = axios.create({
+  baseURL: process.env.REACT_APP_API_URL,
+  timeout: 10000,
+});
+
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  
+  failedQueue = [];
+};
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Queue requests while refreshing
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return apiClient(originalRequest);
+        }).catch(err => {
+          return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/auth/refresh', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const { token: newToken } = await response.json();
+          localStorage.setItem('token', newToken);
+          
+          // 🎯 Setup refresh cho token mới
+          setupTokenRefresh();
+          
+          processQueue(null, newToken);
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return apiClient(originalRequest);
+        } else {
+          processQueue(new Error('Token refresh failed'), null);
+          // Redirect to login
+          window.location.href = '/login';
+        }
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        window.location.href = '/login';
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export default apiClient;
+```
+
+## **4. Custom Hook Approach:**
+```javascript
+// hooks/useTokenRefresh.js
+import { useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+
+export function useTokenRefresh() {
+  const { logout } = useAuth();
+  const refreshTimeoutRef = useRef(null);
+
+  const setupTokenRefresh = useCallback(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    // Clear existing timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const expirationTime = payload.exp * 1000;
+      const refreshTime = expirationTime - Date.now() - 5 * 60 * 1000;
+
+      if (refreshTime > 0) {
+        refreshTimeoutRef.current = setTimeout(async () => {
+          try {
+            const response = await fetch('/api/auth/refresh', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+              const { token: newToken } = await response.json();
+              localStorage.setItem('token', newToken);
+              setupTokenRefresh(); // Setup next refresh
+            } else {
+              logout();
+            }
+          } catch (error) {
+            logout();
+          }
+        }, refreshTime);
+      }
+    } catch (error) {
+      logout();
+    }
+  }, [logout]);
+
+  useEffect(() => {
+    setupTokenRefresh();
+    
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, [setupTokenRefresh]);
+
+  return { setupTokenRefresh };
+}
+
+// Usage trong component
+function Dashboard() {
+  useTokenRefresh(); // Automatically handles token refresh
+  
+  return <div>Dashboard Content</div>;
+}
+```
+
+## **📋 BEST PRACTICES:**
+
+### **✅ DO:**
+```javascript
+// 1. Clear timeouts khi component unmount
+useEffect(() => {
+  return () => clearTimeout(refreshTimeoutRef.current);
+}, []);
+
+// 2. Handle edge cases
+if (timeUntilExpiration <= 0) {
+  logout(); // Token đã expired
+  return;
+}
+
+// 3. Use refresh tokens thay vì access tokens
+const refreshResponse = await fetch('/api/auth/refresh', {
+  method: 'POST',
+  body: JSON.stringify({ refreshToken }),
+  credentials: 'include' // HttpOnly cookies
+});
+
+// 4. Implement exponential backoff cho failed requests
+const retryRefresh = async (attempt = 1) => {
+  const delay = Math.min(1000 * (2 ** attempt), 30000); // Max 30s
+  setTimeout(() => refreshToken(), delay);
+};
+```
+
+### **❌ DON'T:**
+```javascript
+// 1. Không store refresh tokens trong localStorage
+localStorage.setItem('refreshToken', token); // ❌ Security risk
+
+// 2. Không refresh token quá sớm hoặc quá muộn
+const refreshTime = expirationTime - 1000; // ❌ Too late
+const refreshTime = expirationTime - 60 * 60 * 1000; // ❌ Too early (1 hour)
+
+// 3. Không forget cleanup
+setTimeout(refreshToken, 1000); // ❌ Memory leak risk
+
+// 4. Không handle concurrent refreshes
+// Multiple API calls có thể trigger multiple refresh attempts
 ```
 
 ---
